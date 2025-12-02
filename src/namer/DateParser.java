@@ -1,5 +1,6 @@
 package namer;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Locale;
@@ -8,25 +9,29 @@ import java.util.regex.Pattern;
 
 public class DateParser {
 
-    public String extractDate(List<String> lines) {
-        Pattern p = Pattern.compile("(\\w+ \\d{1,2}, \\d{4})");
+    private static final Pattern DATE_PATTERN =
+            Pattern.compile("(\\w+ \\d{1,2}, \\d{4})");
 
+    private static final SimpleDateFormat INPUT =
+            new SimpleDateFormat("MMMM d, yyyy", Locale.US);
+    private static final SimpleDateFormat OUTPUT =
+            new SimpleDateFormat("yyyy-MM-dd");
+
+    public String extractDate(List<String> lines) {
         return lines.stream()
-                .map(p::matcher)
+                .map(DATE_PATTERN::matcher)
                 .filter(Matcher::find)
                 .map(m -> m.group(1))
                 .findFirst()
-                .map(this::convertDateToStandard)
-                .orElseThrow(() -> new RuntimeException("Date not found"));
+                .map(this::format)
+                .orElseThrow(() -> new IllegalArgumentException("Date not found in info.txt"));
     }
 
-    public String convertDateToStandard(String date) {
+    private String format(String date) {
         try {
-            SimpleDateFormat in = new SimpleDateFormat("MMMM d, yyyy", Locale.US);
-            SimpleDateFormat out = new SimpleDateFormat("yyyy-MM-dd");
-            return out.format(in.parse(date));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            return OUTPUT.format(INPUT.parse(date));
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Invalid date format: " + date, e);
         }
     }
 }

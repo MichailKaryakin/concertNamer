@@ -4,105 +4,121 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Утилита для разбора и нормализации названий треков вида:
+ *   d<номер диска>t<номер трека> - <название>
+ */
 public class TitleHandler {
 
-    private static final Set<String> LOWERCASE_WORDS = Set.of(
+    /** Шаблон для строк вида: d2t05 - Song Title */
+    private static final Pattern TRACK_PATTERN =
+            Pattern.compile("d(\\d+)t(\\d+)\\s*-\\s*(.+)");
+
+    /** Слова, которые должны оставаться строчными, если они не первые и не последние в названии */
+    private static final Set<String> LOWER_CASE_WORDS = Set.of(
             "a", "an", "the",
             "and", "or", "but",
-            "in", "on", "at", "to", "from", "for",
-            "of", "with", "without", "into", "over",
-            "under", "up", "down"
+            "in", "on", "at", "to", "from",
+            "for", "of", "with", "without",
+            "into", "over", "under", "up", "down"
     );
 
-    private static final Map<String, String> SPECIAL_CAPS = Map.of(
+    /** Специальные замены (поиск без учета регистра, но фиксированная форма вывода) */
+    private static final Map<String, String> SPECIAL_WORDS = Map.of(
             "mcgee", "McGee",
             "half-step", "Half-Step"
     );
 
-    public String normalizeTitle(String title) {
-        title = title.replace("->", "").trim();
-
-        String lower = title.toLowerCase();
-        for (var e : SPECIAL_CAPS.entrySet()) {
-            if (lower.contains(e.getKey())) {
-                title = title.replaceAll("(?i)" + Pattern.quote(e.getKey()), e.getValue());
-            }
-        }
-
-        String[] words = title.split("\\s+");
-        if (words.length == 0) return title;
-
-        List<String> out = new ArrayList<>();
-
-        out.add(capitalizeComplex(words[0]));
-
-        for (int i = 1; i < words.length; i++) {
-            String w = words[i];
-
-            String wLower = w.toLowerCase();
-            if (SPECIAL_CAPS.containsKey(wLower)) {
-                out.add(SPECIAL_CAPS.get(wLower));
-                continue;
-            }
-
-            if (w.contains("-")) {
-                out.add(capitalizeHyphenated(w));
-                continue;
-            }
-
-            if (i < words.length - 1 && LOWERCASE_WORDS.contains(wLower)) {
-                out.add(wLower);
-            } else {
-                out.add(capitalize(w));
-            }
-        }
-
-        String joined = String.join(" ", out);
-
-        joined = joined.replaceAll("[\\\\/:*?\"<>|]", "");
-
-        return joined.trim();
-    }
-
-    public String capitalize(String w) {
-        if (w.isEmpty()) return w;
-
-        if (w.matches("(?i)^mc[a-z].*")) {
-            return "Mc" + w.substring(2, 3).toUpperCase() + w.substring(3).toLowerCase();
-        }
-
-        return w.substring(0, 1).toUpperCase() + w.substring(1).toLowerCase();
-    }
-
-    private String capitalizeHyphenated(String w) {
-        String[] parts = w.split("-");
-        for (int i = 0; i < parts.length; i++) {
-            parts[i] = capitalize(parts[i]);
-        }
-        return String.join("-", parts);
-    }
-
-    private String capitalizeComplex(String w) {
-        if (w.contains("-")) return capitalizeHyphenated(w);
-        return capitalize(w);
-    }
-
+    /**
+     * Разбирает строки вида "d1t03 - Shakedown Street"
+     * и возвращает мап: ключ = d1t03, значение = нормализованное название
+     */
     public Map<String, String> parseTrackTitles(List<String> lines) {
-        Pattern p = Pattern.compile("d(\\d+)t(\\d+)\\s*-\\s*(.+)");
         Map<String, String> map = new HashMap<>();
 
         for (String line : lines) {
-            Matcher m = p.matcher(line.trim());
-            if (m.find()) {
-                int disc = Integer.parseInt(m.group(1));
-                int track = Integer.parseInt(m.group(2));
-                String raw = m.group(3);
-                String norm = normalizeTitle(raw);
+            Matcher matcher = TRACK_PATTERN.matcher(line.trim());
+            if (!matcher.matches()) {
+                continue;
+            }
 
-                String key = String.format("d%dt%02d", disc, track);
-                map.put(key, norm);
+            int disc = Integer.parseInt(matcher.group(1));
+            int track = Integer.parseInt(matcher.group(2));
+            String rawTitle = matcher.group(3);
+
+            String normalized = normalizeTitle(rawTitle);
+            String key = String.format("d%dt%02d", disc, track);
+
+            map.put(key, normalized);
+        }
+
+        return map;
+    }
+
+    /**
+     * Нормализует название:
+     *  - удаляет "->"
+     *  - применяет специальные замены
+     *  - приводит к корректному кейсу с исключениями
+     *  - удаляет недопустимые символы файловой системы
+     */
+    public String normalizeTitle(String title) {
+        // Удаление стрелок и пробелов по краям
+        title = title.replace("->", "").trim();
+
+        // Применение специальных замен (без учета регистра)
+        for (var entry : SPECIAL_WORDS.entrySet()) {
+            String regex = "(?i)" + entry.getKey();
+            title = title.replaceAll(regex, entry.getValue());
+        }
+
+        String[] words = title.split("\\s+");
+        if (words.length == 0) {
+            return title;
+        }
+
+        List<String> processed = new ArrayList<>();
+        processed.add(capitalizeWord(words[0])); // Первое слово всегда с заглавной
+
+        for (int i = 1; i < words.length; i++) {
+            String lower = words[i].toLowerCase();
+
+            if (SPECIAL_WORDS.containsKey(lower)) {
+                processed.add(SPECIAL_WORDS.get(lower));
+            } else if (LOWER_CASE_WORDS.contains(lower) && i != words.length - 1) {
+                processed.add(lower);
+            } else {
+                processed.add(capitalizeWord(words[i]));
             }
         }
-        return map;
+
+        String result = String.join(" ", processed);
+
+        // Удаление недопустимых символов файловой системы
+        return result.replaceAll("[\\\\/:*?\"<>|]", "").trim();
+    }
+
+    /**
+     * Приводит слово (возможно, с дефисом) к корректному виду: "half-step" → "Half-Step".
+     */
+    private String capitalizeWord(String word) {
+        if (word.contains("-")) {
+            String[] parts = word.split("-");
+            for (int i = 0; i < parts.length; i++) {
+                parts[i] = capitalizeSingle(parts[i]);
+            }
+            return String.join("-", parts);
+        }
+        return capitalizeSingle(word);
+    }
+
+    /**
+     * Делает первую букву заглавной, остальные строчными: "word" → "Word".
+     */
+    private String capitalizeSingle(String w) {
+        if (w.isEmpty()) {
+            return w;
+        }
+        return w.substring(0, 1).toUpperCase() + w.substring(1).toLowerCase();
     }
 }

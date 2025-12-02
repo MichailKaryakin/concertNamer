@@ -54,7 +54,7 @@ public class SongNameCollector {
     public void run() {
         try {
             if (songsFileExists()) {
-                System.out.println("Файл с песнями уже существует, генерация пропущена.");
+                System.out.println("Файл с песнями уже существует, генерация пропущена");
                 return;
             }
 

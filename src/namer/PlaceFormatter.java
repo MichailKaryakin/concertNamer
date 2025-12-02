@@ -14,31 +14,7 @@ public class PlaceFormatter {
             "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
     );
 
-    public String extractCityState(List<String> lines) {
-        return lines.subList(1, lines.size()).stream()
-                .filter(l -> l.contains(" - ") && l.contains(","))
-                .map(l -> l.substring(l.indexOf(" - ") + 3).trim())
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("City/State not found"));
-    }
-
-    public String formatLocation(String cityState) {
-        String[] parts = cityState.split(",");
-        if (parts.length < 2) return cityState.trim();
-
-        String city = parts[0].trim();
-        String region = parts[1].trim();
-
-        if (region.equals("NY")) {
-            return "New York City";
-        } else if (US_STATES.contains(region)) {
-            return city + ", " + normalizedState(region);
-        } else {
-            return city + ", " + region;
-        }
-    }
-
-    private static final Map<String, String> STATE_MAP = Map.ofEntries(
+    private static final Map<String, String> STATE_NAMES = Map.ofEntries(
             Map.entry("AL", "Alabama"),
             Map.entry("AK", "Alaska"),
             Map.entry("AZ", "Arizona"),
@@ -90,9 +66,31 @@ public class PlaceFormatter {
             Map.entry("WY", "Wyoming")
     );
 
+    public String getFormattedLocation(List<String> lines) {
+        String raw = findCityState(lines);
+        String[] parts = raw.split(",");
 
-    public String normalizedState(String state) {
-        if (state == null) return null;
-        return STATE_MAP.get(state.toUpperCase());
+        if (parts.length < 2) return raw;
+
+        String city = parts[0].trim();
+        String region = parts[1].trim();
+
+        if (region.equals("NY")) {
+            return "New York City";
+        }
+        if (US_STATES.contains(region)) {
+            return city + ", " + STATE_NAMES.get(region);
+        }
+        return city + ", " + region;
+    }
+
+    private String findCityState(List<String> lines) {
+        return lines.stream()
+                .skip(1)
+                .filter(l -> l.contains(" - ") && l.contains(","))
+                .map(l -> l.substring(l.indexOf(" - ") + 3))
+                .map(String::trim)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("City/state not found"));
     }
 }

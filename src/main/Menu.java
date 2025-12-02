@@ -9,26 +9,29 @@ public class Menu {
     private final Scanner scanner = new Scanner(System.in);
     private boolean cycleVar = true;
 
-    public void runMenu(String folderName) throws Exception {
+    public void runMenu() throws Exception {
         while (cycleVar) {
-            System.out.println("1 - Именование, 2 - Нормализация, 3 - Завершить работу");
+            System.out.println("1 - Namer, 2 - Normalizer, 3 - Exit");
             int choice = scanner.nextInt();
-            if (choice == 1) {
-                DateParser dateParser = new DateParser();
-                FileProcessor fileProcessor = new FileProcessor();
-                PlaceFormatter placeFormatter = new PlaceFormatter();
-                TitleHandler titleHandler = new TitleHandler();
 
-                RunNamer runNamer = new RunNamer(dateParser, fileProcessor, placeFormatter, titleHandler);
-                runNamer.run("D:\\TorrentShelf\\temporary\\GD\\" + folderName);
+            if (choice == 1) {
+                RunNamer runNamer = new RunNamer(createConcertFolderProcessor());
+                runNamer.run(System.getenv("torrentDirectory"));
             } else if (choice == 2) {
                 RunNormalizer runNormalizer = new RunNormalizer();
                 runNormalizer.run();
             } else if (choice == 3) {
                 cycleVar = false;
             } else {
-                System.out.println("Такой опции нет, попробуйте снова =)");
+                System.out.println("No such choice, try again =)");
             }
         }
+    }
+
+    private ConcertFolderProcessor createConcertFolderProcessor() {
+        return new ConcertFolderProcessor(
+                new ConcertInfoReader(new DateParser(), new PlaceFormatter(), new TitleHandler()),
+                new FileRenamer()
+        );
     }
 }
