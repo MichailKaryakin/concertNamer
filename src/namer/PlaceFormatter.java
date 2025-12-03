@@ -48,6 +48,7 @@ public class PlaceFormatter {
             Map.entry("NM", "New Mexico"),
             Map.entry("NC", "North Carolina"),
             Map.entry("ND", "North Dakota"),
+            Map.entry("NY", "New York"),
             Map.entry("OH", "Ohio"),
             Map.entry("OK", "Oklahoma"),
             Map.entry("OR", "Oregon"),
@@ -75,7 +76,7 @@ public class PlaceFormatter {
         String city = parts[0].trim();
         String region = parts[1].trim();
 
-        if (region.equals("NY")) {
+        if (region.equals("NY") && city.equals("New York")) {
             return "New York City";
         }
         if (US_STATES.contains(region)) {
@@ -86,11 +87,30 @@ public class PlaceFormatter {
 
     private String findCityState(List<String> lines) {
         return lines.stream()
-                .skip(1)
-                .filter(l -> l.contains(" - ") && l.contains(","))
-                .map(l -> l.substring(l.indexOf(" - ") + 3))
                 .map(String::trim)
+                .filter(l -> l.contains(","))            // должна быть запятая
+                .filter(l -> !l.matches(".*\\d.*"))      // не должно быть цифр (отсеивает даты)
+                .filter(this::looksLikeLocation)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("City/state not found"));
     }
+
+    private boolean looksLikeLocation(String line) {
+        // Справа и слева должны быть слова
+        String[] parts = line.split(",", 2);
+        if (parts.length < 2) return false;
+
+        String city = parts[0].trim();
+        String region = parts[1].trim();
+
+        // Город должен начинаться с буквы
+        if (!city.matches("[A-Za-z].*")) return false;
+
+        // Регион должен начинаться с буквы
+        if (!region.matches("[A-Za-z].*")) return false;
+
+        // Город не должен быть слишком коротким
+        return city.length() >= 2;
+    }
+
 }

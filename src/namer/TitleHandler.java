@@ -6,15 +6,19 @@ import java.util.regex.Pattern;
 
 /**
  * Утилита для разбора и нормализации названий треков вида:
- *   d<номер диска>t<номер трека> - <название>
+ * d<номер диска>t<номер трека> - <название>
  */
 public class TitleHandler {
 
-    /** Шаблон для строк вида: d2t05 - Song Title */
+    /**
+     * Шаблон для строк вида: d2t05 - Song Title
+     */
     private static final Pattern TRACK_PATTERN =
             Pattern.compile("d(\\d+)t(\\d+)\\s*-\\s*(.+)");
 
-    /** Слова, которые должны оставаться строчными, если они не первые и не последние в названии */
+    /**
+     * Слова, которые должны оставаться строчными, если они не первые и не последние в названии
+     */
     private static final Set<String> LOWER_CASE_WORDS = Set.of(
             "a", "an", "the",
             "and", "or", "but",
@@ -23,10 +27,13 @@ public class TitleHandler {
             "into", "over", "under", "up", "down"
     );
 
-    /** Специальные замены (поиск без учета регистра, но фиксированная форма вывода) */
+    /**
+     * Специальные замены (поиск без учета регистра, но фиксированная форма вывода)
+     */
     private static final Map<String, String> SPECIAL_WORDS = Map.of(
             "mcgee", "McGee",
-            "half-step", "Half-Step"
+            "half-step", "Half-Step",
+            "u.s.", "U.S."
     );
 
     /**
@@ -51,26 +58,82 @@ public class TitleHandler {
 
             map.put(key, normalized);
         }
+        if (map.isEmpty()) {
+            return parseSetlistTitles(lines);
+        } else {
+            return map;
+        }
+    }
+
+    /**
+     * Парсит названия треков только после заголовков "Set X:" и "Encore:".
+     * При новом Set меняется диск, при Encore — диск остается прежним.
+     * Генерация ключей: d1t01, d1t02, d2t01 и т.п.
+     */
+    public Map<String, String> parseSetlistTitles(List<String> lines) {
+
+        Map<String, String> map = new LinkedHashMap<>();
+
+        int currentDisc = 0;   // номер текущего диска (соответствует Set)
+        int trackNumber = 0;   // номер трека в текущем диске
+        boolean acceptTracks = false; // флаг: разрешено ли читать треки
+
+        for (String raw : lines) {
+            String line = raw.trim();
+            if (line.isEmpty()) continue;
+
+            // Обработка Set X:
+            if (line.matches("(?i)^set\\s*(\\d+).*")) {
+
+                currentDisc = Integer.parseInt(
+                        line.replaceAll("(?i)^set\\s*(\\d+).*", "$1")
+                );  // диск на номер сета
+                trackNumber = 0;       // треки в новом диске начинаются заново
+                acceptTracks = true;   // теперь можно собирать треки
+
+                continue;
+            }
+
+            // Обработка Encore:
+            if (line.matches("(?i)^encore.*")) {
+                acceptTracks = true;
+                continue;
+            }
+
+            // Если читается внутри Set или Encore — это трек
+            if (acceptTracks) {
+
+                // Если диск ещё не определён (например, сразу пошли песни)
+                if (currentDisc == 0) {
+                    currentDisc = 1;
+                }
+
+                trackNumber++;
+
+                String key = String.format("d%dt%02d", currentDisc, trackNumber);
+
+                // убирается "->" в конце
+                String rawTitle = line.replaceAll("\\s*->\\s*$", "");
+
+                // нормализация названия трека
+                String normalized = normalizeTitle(rawTitle);
+                map.put(key, normalized);
+            }
+        }
 
         return map;
     }
 
     /**
      * Нормализует название:
-     *  - удаляет "->"
-     *  - применяет специальные замены
-     *  - приводит к корректному кейсу с исключениями
-     *  - удаляет недопустимые символы файловой системы
+     * - удаляет "->"
+     * - применяет специальные замены
+     * - приводит к корректному кейсу с исключениями
+     * - удаляет недопустимые символы файловой системы
      */
     public String normalizeTitle(String title) {
         // Удаление стрелок и пробелов по краям
         title = title.replace("->", "").trim();
-
-        // Применение специальных замен (без учета регистра)
-        for (var entry : SPECIAL_WORDS.entrySet()) {
-            String regex = "(?i)" + entry.getKey();
-            title = title.replaceAll(regex, entry.getValue());
-        }
 
         String[] words = title.split("\\s+");
         if (words.length == 0) {
@@ -93,6 +156,12 @@ public class TitleHandler {
         }
 
         String result = String.join(" ", processed);
+
+        // Применение специальных замен (без учета регистра)
+        for (var entry : SPECIAL_WORDS.entrySet()) {
+            String regex = "(?i)" + entry.getKey();
+            result = result.replaceAll(regex, entry.getValue());
+        }
 
         // Удаление недопустимых символов файловой системы
         return result.replaceAll("[\\\\/:*?\"<>|]", "").trim();
