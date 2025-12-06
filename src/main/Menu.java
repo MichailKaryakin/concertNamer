@@ -1,5 +1,6 @@
 package main;
 
+import collector.RunCollector;
 import namer.*;
 import normalizer.RunNormalizer;
 
@@ -11,16 +12,19 @@ public class Menu {
 
     public void runMenu() throws Exception {
         while (cycleVar) {
-            System.out.println("1 - Namer, 2 - Normalizer, 3 - Exit");
+            System.out.println("1 - Namer, 2 - Collector, 3 - Normalizer, 4 - Exit");
             int choice = scanner.nextInt();
 
             if (choice == 1) {
                 RunNamer runNamer = new RunNamer(createConcertFolderProcessor());
                 runNamer.run(System.getenv("torrentDirectory"));
             } else if (choice == 2) {
+                RunCollector runCollector = new RunCollector();
+                runCollector.run();
+            }  else if (choice == 3) {
                 RunNormalizer runNormalizer = new RunNormalizer();
                 runNormalizer.run();
-            } else if (choice == 3) {
+            } else if (choice == 4) {
                 cycleVar = false;
             } else {
                 System.out.println("No such choice, try again =)");

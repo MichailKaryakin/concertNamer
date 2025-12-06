@@ -87,10 +87,11 @@ public class PlaceFormatter {
 
     private String findCityState(List<String> lines) {
         return lines.stream()
-                .map(String::trim)
-                .filter(l -> l.contains(","))            // должна быть запятая
-                .filter(l -> !l.matches(".*\\d.*"))      // не должно быть цифр (отсеивает даты)
+                .skip(1)
+                .filter(l -> l.contains(" - ") && l.contains(","))
                 .filter(this::looksLikeLocation)
+                .map(l -> l.substring(l.indexOf(" - ") + 3))
+                .map(String::trim)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("City/state not found"));
     }
@@ -112,5 +113,4 @@ public class PlaceFormatter {
         // Город не должен быть слишком коротким
         return city.length() >= 2;
     }
-
 }

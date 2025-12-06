@@ -2,7 +2,13 @@ package namer;
 
 import java.nio.file.*;
 
-public record RunNamer(ConcertFolderProcessor processor) {
+@SuppressWarnings("ClassCanBeRecord")
+public class RunNamer {
+    private final ConcertFolderProcessor processor;
+
+    public RunNamer(ConcertFolderProcessor processor) {
+        this.processor = processor;
+    }
 
     public void run(String rootPath) throws Exception {
 

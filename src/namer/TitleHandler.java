@@ -33,7 +33,7 @@ public class TitleHandler {
     private static final Map<String, String> SPECIAL_WORDS = Map.of(
             "mcgee", "McGee",
             "half-step", "Half-Step",
-            "u.s.", "U.S."
+            "u.s. blues", "U.S. Blues"
     );
 
     /**
@@ -125,6 +125,41 @@ public class TitleHandler {
     }
 
     /**
+     * Чистит странности юникода, которые могут конфликтовать
+     * с методами класса, выливаясь в неправильный нейминг.
+     * Удаляет из названий знак стрелочки.
+     */
+    private String clearQuirks(String title) {
+        // Нормализация типографских апострофов и кавычек
+        title = title.replace("’", "'")
+                .replace("‘", "'")
+                .replace("“", "\"")
+                .replace("”", "\"");
+
+        // Нормализация длинных тире и дефисов
+        title = title.replace("–", "-")   // EN DASH
+                .replace("—", "-")   // EM DASH
+                .replace("−", "-");  // MINUS SIGN
+
+        // Удаление неразрывных пробелов
+        title = title.replace("\u00A0", " ");
+
+        // Замена мусорных управляющих символов
+        title = title.replaceAll("[\\u200B\\u200C\\u200D\\uFEFF]", "");
+
+        // Замена тройных точек на обычные (если нужно)
+        title = title.replace("…", "...");
+
+        // Удаление двойных пробелов
+        title = title.replaceAll("\\s{2,}", " ").trim();
+
+        // Удаление стрелок и пробелов по краям
+        title = title.replace("->", "").trim();
+
+        return title;
+    }
+
+    /**
      * Нормализует название:
      * - удаляет "->"
      * - применяет специальные замены
@@ -132,8 +167,7 @@ public class TitleHandler {
      * - удаляет недопустимые символы файловой системы
      */
     public String normalizeTitle(String title) {
-        // Удаление стрелок и пробелов по краям
-        title = title.replace("->", "").trim();
+        title = clearQuirks(title);
 
         String[] words = title.split("\\s+");
         if (words.length == 0) {
@@ -184,10 +218,23 @@ public class TitleHandler {
     /**
      * Делает первую букву заглавной, остальные строчными: "word" → "Word".
      */
-    private String capitalizeSingle(String w) {
-        if (w.isEmpty()) {
-            return w;
+    private String capitalizeSingle(String word) {
+        if (word.isEmpty()) {
+            return word;
         }
-        return w.substring(0, 1).toUpperCase() + w.substring(1).toLowerCase();
+
+        // Находит первую букву в слове
+        int i = 0;
+        while (i < word.length() && !Character.isLetter(word.charAt(i))) {
+            i++;
+        }
+        if (i == word.length()) {
+            return word; // нет букв
+        }
+
+        // Строится слово, первая буква заглавная
+        return word.substring(0, i)
+                + Character.toUpperCase(word.charAt(i))
+                + word.substring(i + 1).toLowerCase();
     }
 }

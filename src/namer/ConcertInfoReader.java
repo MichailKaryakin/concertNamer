@@ -3,7 +3,17 @@ package namer;
 import java.nio.file.*;
 import java.util.List;
 
-public record ConcertInfoReader(DateParser dateParser, PlaceFormatter placeFormatter, TitleHandler titleHandler) {
+@SuppressWarnings("ClassCanBeRecord")
+public class ConcertInfoReader {
+    private final DateParser dateParser;
+    private final PlaceFormatter placeFormatter;
+    private final TitleHandler titleHandler;
+
+    public ConcertInfoReader(DateParser dateParser, PlaceFormatter placeFormatter, TitleHandler titleHandler) {
+        this.dateParser = dateParser;
+        this.placeFormatter = placeFormatter;
+        this.titleHandler = titleHandler;
+    }
 
     public ConcertInfo read(Path folder) throws Exception {
         Path info = folder.resolve("info.txt");

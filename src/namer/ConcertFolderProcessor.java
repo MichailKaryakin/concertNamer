@@ -8,7 +8,15 @@ import java.nio.file.*;
  * - создание целевой директории с правильным названием
  * - обработка и переименование аудио-файлов
  */
-public record ConcertFolderProcessor(ConcertInfoReader infoReader, FileRenamer fileRenamer) {
+@SuppressWarnings("ClassCanBeRecord")
+public class ConcertFolderProcessor {
+    private final ConcertInfoReader infoReader;
+    private final FileRenamer fileRenamer;
+
+    public ConcertFolderProcessor(ConcertInfoReader infoReader, FileRenamer fileRenamer) {
+        this.infoReader = infoReader;
+        this.fileRenamer = fileRenamer;
+    }
 
     /**
      * Обрабатывает папку концерта:
@@ -32,6 +40,54 @@ public record ConcertFolderProcessor(ConcertInfoReader infoReader, FileRenamer f
         try (var stream = Files.list(folder)) {
             stream.filter(p -> p.toString().matches("(?i).+\\.(flac|wav)$"))
                     .forEach(file -> processAudio(file, info, targetRoot));
+        }
+
+        try (var stream = Files.list(folder)) {
+            var files = stream.toList();
+            if (files.size() == 1) {
+                moveFilesHigher(folder);
+            }
+        }
+    }
+
+    /**
+     * Переносит все файлы из папок дисков в корневую директорию.
+     * После переноса пустые папки удаляются.
+     */
+    private void moveFilesHigher(Path rootDir) {
+        try (var stream = Files.list(rootDir)) {
+
+            stream.filter(Files::isDirectory)
+                    .filter(dir -> dir.getFileName().toString().matches("(?i)disc \\d+")) // Disc 1, Disc 2 ...
+                    .forEach(discDir -> {
+
+                        // Перенос всех файлов из папки диска в корень
+                        try (var files = Files.list(discDir)) {
+
+                            files.filter(Files::isRegularFile)
+                                    .forEach(f -> {
+                                        try {
+                                            Path target = rootDir.resolve(f.getFileName());
+                                            Files.move(f, target, StandardCopyOption.REPLACE_EXISTING);
+                                        } catch (Exception e) {
+                                            System.out.println("Ошибка перемещения " + f + ": " + e.getMessage());
+                                        }
+                                    });
+
+                        } catch (Exception e) {
+                            System.out.println("Ошибка чтения папки " + discDir + ": " + e.getMessage());
+                        }
+
+                        // Удаление пустой папки диска
+                        try {
+                            Files.deleteIfExists(discDir);
+                        } catch (Exception e) {
+                            System.out.println("Не удалось удалить " + discDir + ": " + e.getMessage());
+                        }
+                    });
+
+        } catch (Exception e) {
+            System.out.println("Ошибка сканирования директории " + rootDir + ": " + e.getMessage());
         }
     }
 

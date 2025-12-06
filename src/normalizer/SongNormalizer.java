@@ -64,6 +64,9 @@ public class SongNormalizer {
 
         System.out.println("Переименовано: " + filename + " -> " + newName);
 
-        Files.move(file, newPath);
+        Path temp = file.resolveSibling(file.getFileName().toString() + "_tmp123");
+
+        Files.move(file, temp, StandardCopyOption.REPLACE_EXISTING);
+        Files.move(temp, newPath, StandardCopyOption.REPLACE_EXISTING);
     }
 }
