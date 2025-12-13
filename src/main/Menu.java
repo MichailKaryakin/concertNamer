@@ -16,7 +16,7 @@ public class Menu {
             int choice = scanner.nextInt();
 
             if (choice == 1) {
-                RunNamer runNamer = new RunNamer(createConcertFolderProcessor());
+                RunNamer runNamer = new RunNamer();
                 runNamer.run(System.getenv("torrentDirectory"));
             } else if (choice == 2) {
                 RunCollector runCollector = new RunCollector();
@@ -30,12 +30,5 @@ public class Menu {
                 System.out.println("No such choice, try again =)");
             }
         }
-    }
-
-    private ConcertFolderProcessor createConcertFolderProcessor() {
-        return new ConcertFolderProcessor(
-                new ConcertInfoReader(new DateParser(), new PlaceFormatter(), new TitleHandler()),
-                new FileRenamer()
-        );
     }
 }
